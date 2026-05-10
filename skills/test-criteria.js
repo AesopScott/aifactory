@@ -65,8 +65,8 @@ module.exports = {
     const passed = []
     const failed = []
     for (const line of log) {
-      const passMatch = line.match(/^PASS:\s*(.+)/)
-      const failMatch = line.match(/^FAIL:\s*(.+)/)
+      const passMatch = line.match(/\bPASS:\s*(.+)/i)
+      const failMatch = line.match(/\bFAIL:\s*(.+)/i)
       if (passMatch) passed.push(passMatch[1].trim())
       if (failMatch) failed.push(failMatch[1].trim())
     }

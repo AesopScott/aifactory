@@ -1,7 +1,8 @@
-﻿'use strict'
+'use strict'
 
 const { spawn } = require('child_process')
 const fs = require('fs')
+const http = require('http')
 const path = require('path')
 const testCriteria = require('./test-criteria')
 
@@ -28,6 +29,16 @@ module.exports = {
     const lines = await runClaudeAgent({ prompt, model, apiKey, workDir, emit, registerKill: registerKill || (() => {}) })
 
     const { passed, failed } = testCriteria.parseTestResults(lines)
+
+    const platform = project.spec?.answers?.platform || ''
+    if (platform.includes('Web App')) {
+      const httpResults = await httpSmokeTest(workDir, project.spec.answers, emit)
+      for (const r of httpResults) {
+        if (r.pass) passed.push(r.name)
+        else failed.push(`${r.name} — ${r.reason}`)
+      }
+    }
+
     project.testLog = lines
     project.testResults = {
       passed,
@@ -80,6 +91,56 @@ function testPrompt(criteriaText, workDir, polarisProjects, obsidianVaultPath) {
   )
 
   return lines.join('\n')
+}
+
+function httpSmokeTest(workDir, specAnswers, emit) {
+  return new Promise((resolve) => {
+    const pkgPath = path.join(workDir, 'package.json')
+    if (!fs.existsSync(pkgPath)) return resolve([])
+
+    let pkg
+    try { pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8')) } catch (_) { return resolve([]) }
+    if (!pkg.scripts?.start) return resolve([])
+
+    const urlSpec = (specAnswers.webpage_url || '').trim()
+    const portMatch = urlSpec.match(/:(\d+)/)
+    const port = portMatch ? parseInt(portMatch[1]) : 3000
+    const url = urlSpec.startsWith('http') ? urlSpec : `http://localhost:${port}`
+
+    emit({ text: `\n[HTTP smoke test] Starting app on port ${port}...\n`, role: 'system' })
+
+    const env = { ...process.env }
+    delete env.ELECTRON_RUN_AS_NODE
+    env.PORT = String(port)
+
+    const proc = spawn('npm start', [], { shell: true, cwd: workDir, stdio: 'ignore', env })
+
+    let settled = false
+    const settle = (result) => {
+      if (settled) return
+      settled = true
+      clearInterval(pollTimer)
+      clearTimeout(giveUpTimer)
+      proc.kill()
+      resolve(result)
+    }
+
+    const giveUpTimer = setTimeout(() => {
+      emit({ text: `[HTTP smoke test] App did not start within 30s\n`, role: 'error' })
+      settle([{ name: `HTTP smoke test: GET ${url}`, pass: false, reason: 'App did not start within 30s' }])
+    }, 30000)
+
+    const pollTimer = setInterval(() => {
+      const req = http.get(url, (res) => {
+        res.resume()
+        const ok = res.statusCode < 400
+        emit({ text: `[HTTP smoke test] ${ok ? '✓' : '✗'} ${url} → ${res.statusCode}\n`, role: 'system' })
+        settle([{ name: `HTTP smoke test: GET ${url}`, pass: ok, reason: ok ? '' : `HTTP ${res.statusCode}` }])
+      })
+      req.on('error', () => {})
+      req.setTimeout(1000, () => req.destroy())
+    }, 1000)
+  })
 }
 
 function runClaudeAgent({ prompt, model, apiKey, workDir, emit, registerKill }) {
