@@ -204,9 +204,9 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
           <option value="floor">Floor — Haiku</option>
           <option value="opus">Power — Opus</option>
         </select>
-        <button class="btn primary" onclick="startPipeline('full-pipeline')">&#9654; Full Pipeline</button>
-        <button class="btn" onclick="startPipeline('build-only')">Build Only</button>
-        <button class="btn" onclick="startPipeline('test-only')">Test Only</button>
+        <button class="btn primary" onclick="startPipeline('full-pipeline')" title="Build code from your spec, run tests, and publish results">&#9654; Full Pipeline</button>
+        <button class="btn" onclick="startPipeline('build-only')" title="Generate code only — skip testing and publishing">Build Only</button>
+        <button class="btn" onclick="startPipeline('test-only')" title="Run tests on already-built code — skip code generation">Test Only</button>
         <button class="btn" id="stop-btn" style="display:none;border-color:var(--error);color:var(--error)" onclick="stopPipeline()">&#9632; Stop</button>
         <button class="btn" id="obsidian-btn" style="display:none" onclick="openObsidian()">Open in Obsidian</button>
       </div>
