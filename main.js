@@ -44,12 +44,12 @@ function forkServer() {
     }
   })
 
-  const fallback = setTimeout(() => mainWindow?.loadURL(`http://localhost:${SERVER_PORT}`), 5000)
+  const fallback = setTimeout(() => mainWindow?.loadURL(`http://localhost:${SERVER_PORT}`).catch(() => {}), 5000)
 
   serverProcess.on('message', async (msg) => {
     if (msg.type === 'server-ready') {
       clearTimeout(fallback)
-      mainWindow?.loadURL(`http://localhost:${SERVER_PORT}`)
+      mainWindow?.loadURL(`http://localhost:${SERVER_PORT}`).catch(() => {})
     }
     if (msg.type === 'pick-directory') {
       const result = await dialog.showOpenDialog(mainWindow, {
