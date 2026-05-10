@@ -471,4 +471,5 @@ wss.on('connection', (ws) => {
 loadProjects()
 server.listen(PORT, '127.0.0.1', () => {
   console.log(`AI Factory server running on http://127.0.0.1:${PORT}`)
+  if (process.send) process.send({ type: 'server-ready' })
 })
