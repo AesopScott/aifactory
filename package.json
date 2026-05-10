@@ -4,7 +4,7 @@
   "description": "AI-powered project factory — specify, build, test, ship.",
   "main": "main.js",
   "scripts": {
-    "start": "electron .",
+    "start": "SET ELECTRON_RUN_AS_NODE=&& electron .",
     "dist": "electron-builder"
   },
   "dependencies": {
