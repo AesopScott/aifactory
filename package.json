@@ -1,6 +1,6 @@
 {
   "name": "ai-factory",
-  "version": "1.0.16",
+  "version": "1.0.17",
   "description": "AI-powered project factory — specify, build, test, ship.",
   "main": "main.js",
   "scripts": {

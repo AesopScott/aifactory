@@ -381,6 +381,17 @@ function handleMessage(ws, msg) {
     return
   }
 
+  if (msg.type === 'stop-pipeline') {
+    const project = findProject(msg.projectId)
+    if (!project) return
+    killActive(msg.projectId)
+    project.status = 'stopped'
+    saveProjects()
+    broadcast({ type: 'pipeline-stopped', projectId: msg.projectId })
+    broadcast({ type: 'project-updated', project: safeProject(project) })
+    return
+  }
+
   if (msg.type === 'start-pipeline') {
     const project = findProject(msg.projectId)
     if (!project) { sendTo(ws, { type: 'error', message: 'Project not found' }); return }

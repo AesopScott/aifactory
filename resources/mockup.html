@@ -63,6 +63,10 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .result-score.bad{color:var(--error)}
 .test-item{display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid #1a1a1a;font-size:13px}
 .terminal{background:#0a0a0a;border:1px solid var(--border);border-radius:6px;padding:12px;font-family:'Consolas','Courier New',monospace;font-size:12px;line-height:1.6;max-height:400px;overflow-y:auto;white-space:pre-wrap;word-break:break-word}
+@keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:.2}}
+.live-dot{width:8px;height:8px;border-radius:50%;background:var(--success);animation:pulse-dot 1.2s ease-in-out infinite;flex-shrink:0}
+.pipeline-status{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--muted)}
+.debug-terminal{background:#060606;border:1px solid #1a1a1a;border-radius:6px;padding:10px 12px;font-family:'Consolas','Courier New',monospace;font-size:11px;line-height:1.5;max-height:220px;overflow-y:auto;white-space:pre-wrap;word-break:break-word;color:#555;margin-top:6px}
 .line-assistant{color:#d4d4d4}
 .line-system{color:var(--system);font-style:italic}
 .line-error{color:var(--error)}
@@ -176,6 +180,11 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
           <div class="stage-item" id="stage-publish"><span class="stage-icon">&#128279;</span><div>Publish</div><div class="stage-label" id="stage-publish-label">waiting</div></div>
         </div>
       </div>
+      <div id="pipeline-status" class="pipeline-status" style="display:none">
+        <div class="live-dot"></div>
+        <span id="status-stage">Running...</span>
+        <span id="status-elapsed" style="margin-left:auto;font-family:'Consolas',monospace;font-size:11px"></span>
+      </div>
       <div class="card" id="results-score-card" style="display:none">
         <div class="card-title">Test Results</div>
         <div id="results-score" class="result-score"></div>
@@ -198,7 +207,12 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
         <button class="btn primary" onclick="startPipeline('full-pipeline')">&#9654; Full Pipeline</button>
         <button class="btn" onclick="startPipeline('build-only')">Build Only</button>
         <button class="btn" onclick="startPipeline('test-only')">Test Only</button>
+        <button class="btn" id="stop-btn" style="display:none;border-color:var(--error);color:var(--error)" onclick="stopPipeline()">&#9632; Stop</button>
         <button class="btn" id="obsidian-btn" style="display:none" onclick="openObsidian()">Open in Obsidian</button>
+      </div>
+      <div>
+        <button class="btn" style="font-size:11px;padding:3px 8px" onclick="toggleDebug()">&#128270; Debug Log</button>
+        <div id="debug-terminal" class="debug-terminal" style="display:none"></div>
       </div>
     </div>
   </div>
@@ -228,7 +242,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 <script>
 (function(){
 'use strict';
-var ws=null,projects=[],polarisProjects=[],polarisVaultPath='',currentPolarisProjectName=null,currentProjectId=null,specQuestions=[],testQuestions=[],skillsList=[],routinesList=[],specIndex=0,testIndex=0,specEditMode=false,testEditMode=false;
+var ws=null,projects=[],polarisProjects=[],polarisVaultPath='',currentPolarisProjectName=null,currentProjectId=null,specQuestions=[],testQuestions=[],skillsList=[],routinesList=[],specIndex=0,testIndex=0,specEditMode=false,testEditMode=false,pipelineRunning=false,pipelineStageStart=0,statusTimer=null,debugVisible=false;
 function currentProject(){return projects.find(function(p){return p.id===currentProjectId})||null}
 function connect(){ws=new WebSocket('ws://localhost:40100');ws.onopen=function(){send({type:'get-state'})};ws.onmessage=function(e){try{handleMessage(JSON.parse(e.data))}catch(_){}};ws.onclose=function(){setTimeout(connect,2000)}}
 function send(data){if(ws&&ws.readyState===1)ws.send(JSON.stringify(data))}
@@ -237,9 +251,10 @@ function handleMessage(msg){
   if(msg.type==='project-created'){projects.push(msg.project);currentPolarisProjectName=msg.project.polarisProjectName||null;currentProjectId=msg.project.id;renderAll();showTab('specs');return}
   if(msg.type==='project-updated'){var idx=projects.findIndex(function(p){return p.id===msg.project.id});if(idx>=0)projects[idx]=msg.project;else projects.push(msg.project);if(msg.project.id===currentProjectId)renderCurrentProject();renderProjectSelect();return}
   if(msg.type==='agent-line'){if(msg.projectId===currentProjectId)appendOutput(msg.text,msg.role||'assistant');return}
-  if(msg.type==='stage-started'){if(msg.projectId===currentProjectId){appendOutput('\n=== '+msg.stage+' ===\n','system');updateStageUI(msg.stage,'active');showTab('results')}return}
-  if(msg.type==='stage-done'){if(msg.projectId===currentProjectId)updateStageUI(msg.stage,msg.success?'done':'failed');return}
-  if(msg.type==='pipeline-done'){if(msg.projectId===currentProjectId)renderCurrentProject();return}
+  if(msg.type==='stage-started'){appendDebug('stage-started: '+msg.stage);if(msg.projectId===currentProjectId){appendOutput('\n=== '+msg.stage+' ===\n','system');updateStageUI(msg.stage,'active');showTab('results');startStatusTimer(msg.stage);setStopVisible(true)}return}
+  if(msg.type==='stage-done'){appendDebug('stage-done: '+msg.stage+' success='+msg.success);if(msg.projectId===currentProjectId)updateStageUI(msg.stage,msg.success?'done':'failed');return}
+  if(msg.type==='pipeline-done'){appendDebug('pipeline-done');if(msg.projectId===currentProjectId){stopStatusTimer();setStopVisible(false);renderCurrentProject()}return}
+  if(msg.type==='pipeline-stopped'){appendDebug('pipeline-stopped');if(msg.projectId===currentProjectId){stopStatusTimer();setStopVisible(false);appendOutput('\n[Pipeline stopped]\n','system');renderCurrentProject()}return}
   if(msg.type==='project-deleted'){projects=projects.filter(function(p){return p.id!==msg.projectId});if(currentProjectId===msg.projectId){currentProjectId=null;renderAll()}else{renderProjectSelect()};return}
   if(msg.type==='config'){applyConfig(msg.config);return}
   if(msg.type==='error'){showToast(msg.message,true);return}
@@ -283,7 +298,13 @@ var CFG=['openRouterApiKey','anthropicApiKey','openRouterFloorModel','openRouter
 function applyConfig(cfg){CFG.forEach(function(f){var inp=document.getElementById('cfg-'+f);if(inp&&cfg[f]!==undefined)inp.value=cfg[f]})}
 function saveSettings(){var config={};CFG.forEach(function(f){var inp=document.getElementById('cfg-'+f);if(inp)config[f]=inp.value});send({type:'save-config',config:config});closeModal('settings-modal');showToast('Settings saved')}
 function getModelTier(){var onTesting=document.getElementById('panel-testing').classList.contains('active');var sel=document.getElementById(onTesting?'model-tier-select-tc':'model-tier-select');return sel?sel.value:'sonnet'}
-function startPipeline(r){var p=currentProject();if(!p){showToast('Select a project first',true);return}send({type:'start-pipeline',projectId:p.id,routine:r,modelTier:getModelTier()});showTab('results');resetStageUI();clearOutput()}
+function stopPipeline(){var p=currentProject();if(!p)return;send({type:'stop-pipeline',projectId:p.id});appendDebug('stop-pipeline sent')}
+function setStopVisible(v){var b=document.getElementById('stop-btn');if(b)b.style.display=v?'':'none'}
+function toggleDebug(){debugVisible=!debugVisible;var d=document.getElementById('debug-terminal');if(d)d.style.display=debugVisible?'':'none'}
+function appendDebug(text){var t=document.getElementById('debug-terminal');if(!t)return;var ts=new Date().toLocaleTimeString('en-US',{hour12:false});var div=document.createElement('div');div.textContent=ts+' '+text;t.appendChild(div);if(t.children.length>500)t.removeChild(t.firstChild);if(debugVisible)t.scrollTop=t.scrollHeight}
+function startStatusTimer(stage){pipelineRunning=true;pipelineStageStart=Date.now();var el=document.getElementById('pipeline-status');var st=document.getElementById('status-stage');if(el)el.style.display='';if(st)st.textContent=stage;if(statusTimer)clearInterval(statusTimer);statusTimer=setInterval(function(){var se=document.getElementById('status-elapsed');if(se)se.textContent=Math.floor((Date.now()-pipelineStageStart)/1000)+'s'},500)}
+function stopStatusTimer(){pipelineRunning=false;if(statusTimer){clearInterval(statusTimer);statusTimer=null}var el=document.getElementById('pipeline-status');if(el)el.style.display='none'}
+function startPipeline(r){var p=currentProject();if(!p){showToast('Select a project first',true);return}send({type:'start-pipeline',projectId:p.id,routine:r,modelTier:getModelTier()});showTab('results');resetStageUI();clearOutput();appendDebug('pipeline start: '+r)}
 function resetStageUI(){Object.keys(stageTimers).forEach(function(k){clearInterval(stageTimers[k])});stageTimers={};['stage-build','stage-test','stage-publish'].forEach(function(id){var e=document.getElementById(id);if(e)e.className='stage-item'});document.getElementById('stage-build-label').textContent='waiting';document.getElementById('stage-test-label').textContent='waiting';document.getElementById('stage-publish-label').textContent='waiting'}
 function runSkill(n){var p=currentProject();if(!p){showToast('Select a project first',true);return}send({type:'run-skill',projectId:p.id,skillName:n});showTab('results');clearOutput()}
 function runRoutine(n){var p=currentProject();if(!p){showToast('Select a project first',true);return}send({type:'run-routine',projectId:p.id,routineName:n});showTab('results');resetStageUI();clearOutput()}
