@@ -2,13 +2,10 @@
 
 const { spawn } = require('child_process')
 const fs = require('fs')
-const os = require('os')
 const path = require('path')
 const specInterview = require('./spec-interview')
+const { runDirectAgent } = require('./lib/direct-agent')
 
-const ISOLATED_HOME = path.join(os.tmpdir(), 'aifactory-claude-isolated')
-
-const BUILD_TIMEOUT_MS = 15 * 60 * 1000
 const MAX_BUILD_ATTEMPTS = 3
 
 module.exports = {
@@ -31,6 +28,7 @@ module.exports = {
 
     let allLines = []
     let lastError = null
+    let agentSucceeded = false
 
     for (let attempt = 1; attempt <= MAX_BUILD_ATTEMPTS; attempt++) {
       if (attempt > 1) {
@@ -40,9 +38,19 @@ module.exports = {
       const prompt = buildPrompt(specText, workDir, polarisProjects || [], obsidianVaultPath || '', lastError)
 
       try {
-        const lines = await runClaudeAgent({ prompt, model, apiKey, workDir, emit, registerKill: registerKill || (() => {}) })
+        const result = await runDirectAgent({ prompt, model, apiKey, workDir, emit, registerKill: registerKill || (() => {}) })
+        const lines = result.lines || []
+        // Silent-failure gate: agent must produce at least one assistant text line.
+        // A zero-line return means the model emitted no usable output (auth fail,
+        // empty response, etc.). Without this gate the v1.0.21 incident shipped:
+        // gitAutoCommit ran on Aesop's pre-existing files, producing a 2780-file
+        // phantom "build" commit even though the agent never actually wrote anything.
+        if (lines.length === 0) {
+          throw new Error('Agent produced no output (zero assistant lines). Refusing to proceed to install/commit.')
+        }
         allLines = allLines.concat(lines)
         lastError = null
+        agentSucceeded = true
         break
       } catch (err) {
         lastError = err.message
@@ -52,6 +60,10 @@ module.exports = {
           throw new Error(`Build failed after ${MAX_BUILD_ATTEMPTS} attempts. Last error: ${err.message}`)
         }
       }
+    }
+
+    if (!agentSucceeded) {
+      throw new Error('Build agent did not succeed — skipping install and commit.')
     }
 
     await installDependencies(workDir, emit)
@@ -172,84 +184,5 @@ function runCommand(cmd, cwd, emit, label) {
   })
 }
 
-function runClaudeAgent({ prompt, model, apiKey, workDir, emit, registerKill }) {
-  return new Promise((resolve, reject) => {
-    const args = [
-      '--output-format', 'stream-json',
-      '--verbose',
-      '--model', model,
-      '-p', prompt
-    ]
-    fs.mkdirSync(ISOLATED_HOME, { recursive: true })
-    const env = {
-      ...process.env,
-      ANTHROPIC_BASE_URL: 'https://openrouter.ai/api',
-      ANTHROPIC_AUTH_TOKEN: apiKey,
-      HOME: ISOLATED_HOME,
-      USERPROFILE: ISOLATED_HOME
-    }
-    delete env.ANTHROPIC_API_KEY
-    delete env.CLAUDE_CODE_OAUTH_TOKEN
-    delete env.CLAUDE_CONFIG_DIR
-
-    emit({ text: `[debug] model: ${model}\n`, role: 'system' })
-    emit({ text: `[debug] workDir: ${workDir}\n`, role: 'system' })
-    emit({ text: `[debug] prompt length: ${prompt.length} chars\n`, role: 'system' })
-    emit({ text: `[debug] base URL: ${env.ANTHROPIC_BASE_URL}\n`, role: 'system' })
-    emit({ text: `[debug] API key present: ${!!apiKey}\n`, role: 'system' })
-    emit({ text: `[debug] isolated HOME: ${ISOLATED_HOME}\n`, role: 'system' })
-
-    const proc = spawn('claude', args, { shell: true, cwd: workDir, env, stdio: ['ignore', 'pipe', 'pipe'] })
-    emit({ text: `[debug] spawned claude PID: ${proc.pid}\n`, role: 'system' })
-    registerKill(() => proc.kill())
-
-    const lines = []
-    let buffer = ''
-    let stderrBuffer = ''
-
-    proc.stdout.on('data', (chunk) => {
-      buffer += chunk.toString()
-      const parts = buffer.split('\n')
-      buffer = parts.pop()
-      for (const part of parts) {
-        if (!part.trim()) continue
-        try {
-          const event = JSON.parse(part)
-          if (event.type === 'assistant' && Array.isArray(event.message?.content)) {
-            for (const block of event.message.content) {
-              if (block.type === 'text') {
-                emit({ text: block.text, role: 'assistant' })
-                lines.push(block.text)
-              }
-            }
-          }
-        } catch (_) {}
-      }
-    })
-
-    proc.stderr.on('data', (chunk) => {
-      const text = chunk.toString()
-      stderrBuffer += text
-      emit({ text, role: 'error' })
-    })
-
-    const timer = setTimeout(() => {
-      proc.kill()
-      reject(new Error('Build agent timed out after 15 minutes'))
-    }, BUILD_TIMEOUT_MS)
-
-    proc.on('close', (code) => {
-      registerKill(null)
-      clearTimeout(timer)
-      emit({ text: `[debug] claude exited with code ${code}\n`, role: 'system' })
-      if (code === 0) {
-        emit({ text: `[debug] build agent produced ${lines.length} output lines\n`, role: 'system' })
-        resolve(lines)
-      } else {
-        const detail = stderrBuffer.trim() ? `\nStderr:\n${stderrBuffer.trim()}` : ''
-        const codeStr = code === null ? 'null (process killed or crashed before exit)' : code
-        reject(new Error(`Build agent exited with code ${codeStr}${detail}`))
-      }
-    })
-  })
-}
+// runClaudeAgent (Claude CLI spawn path) was removed in v1.0.22.
+// AI Factory now runs agents directly against OpenRouter via lib/direct-agent.

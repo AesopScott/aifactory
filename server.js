@@ -68,7 +68,7 @@ const DEFAULT_CONFIG = {
   anthropicApiKey: '',
   openRouterFloorModel: 'anthropic/claude-haiku-4-5',
   openRouterSonnetModel: 'anthropic/claude-sonnet-4-5',
-  openRouterOpusModel: 'anthropic/claude-opus-4-5',
+  openRouterOpusModel: 'anthropic/claude-opus-4-7',
   obsidianVaultPath: '',
   defaultRoutine: 'full-pipeline'
 }
@@ -78,6 +78,12 @@ function readConfig() {
   const cfg = { ...DEFAULT_CONFIG, ...raw }
   for (const f of SECRET_FIELDS) {
     if (cfg[f]) cfg[f] = decrypt(cfg[f])
+  }
+  // Polaris is the authoritative source for API secrets — overlay if present.
+  // Local AI Factory keys remain as a fallback for installs where Polaris is absent.
+  const polaris = readPolarisSecrets()
+  for (const f of SECRET_FIELDS) {
+    if (polaris[f]) cfg[f] = polaris[f]
   }
   return cfg
 }
@@ -106,6 +112,9 @@ function saveConfig(incoming) {
 
 // ── Polaris registry ──────────────────────────────────────────────────────────
 
+const POLARIS_DIR = path.join(APPDATA, '.claude', 'polaris')
+const POLARIS_ENC_KEY_PATH = path.join(POLARIS_DIR, 'enc-key.bin')
+
 function readPolarisRegistry() {
   try {
     const cfg = JSON.parse(fs.readFileSync(POLARIS_CONFIG, 'utf8'))
@@ -115,6 +124,47 @@ function readPolarisRegistry() {
     }
   } catch {
     return { projects: [], obsidianVaultPath: '' }
+  }
+}
+
+// Polaris is the authoritative source for API secrets. AI Factory reads
+// %APPDATA%\.claude\polaris\enc-key.bin (32-byte stable key) and decrypts
+// openRouterApiKey + anthropicApiKey from Polaris's config.json. Polaris uses
+// AES-256-GCM with a 16-byte IV + 16-byte tag — different from AI Factory's
+// own legacy crypto (12-byte IV, MachineGuid-derived key).
+
+function getPolarisStableKey() {
+  try {
+    const buf = fs.readFileSync(POLARIS_ENC_KEY_PATH)
+    if (buf.length === 32) return buf
+  } catch {}
+  return null
+}
+
+function decryptPolarisSecret(value, key) {
+  if (!value || typeof value !== 'string' || !value.startsWith('enc:')) return value || ''
+  try {
+    const buf = Buffer.from(value.slice(4), 'base64')
+    const iv = buf.slice(0, 16)
+    const tag = buf.slice(16, 32)
+    const enc = buf.slice(32)
+    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv)
+    decipher.setAuthTag(tag)
+    return decipher.update(enc) + decipher.final('utf8')
+  } catch { return '' }
+}
+
+function readPolarisSecrets() {
+  const key = getPolarisStableKey()
+  if (!key) return { openRouterApiKey: '', anthropicApiKey: '' }
+  try {
+    const raw = JSON.parse(fs.readFileSync(POLARIS_CONFIG, 'utf8'))
+    return {
+      openRouterApiKey: decryptPolarisSecret(raw.openRouterApiKey, key),
+      anthropicApiKey: decryptPolarisSecret(raw.anthropicApiKey, key)
+    }
+  } catch {
+    return { openRouterApiKey: '', anthropicApiKey: '' }
   }
 }
 

@@ -231,8 +231,10 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 </div>
 <div class="modal-overlay" id="settings-modal">
   <div class="modal"><h2>Settings</h2>
-    <div class="field"><label>OpenRouter API Key</label><input id="cfg-openRouterApiKey" type="password" placeholder="sk-or-..."></div>
-    <div class="field"><label>Anthropic API Key (direct)</label><input id="cfg-anthropicApiKey" type="password" placeholder="sk-ant-..."></div>
+    <div class="field" style="background:#1f2937;border:1px solid #374151;padding:10px 12px;border-radius:6px;font-size:12px;line-height:1.5;color:#cbd5e1;">
+      <strong style="color:#e2e8f0;">API keys are sourced from Polaris.</strong><br>
+      OpenRouter and Anthropic keys are read from <code>%APPDATA%\.claude\polaris\config.json</code> on every build. Set them in Polaris's Settings panel — AI Factory has no separate key store.
+    </div>
     <div class="field"><label>Floor Model (Haiku)</label><input id="cfg-openRouterFloorModel" type="text"></div>
     <div class="field"><label>Balanced Model (Sonnet)</label><input id="cfg-openRouterSonnetModel" type="text"></div>
     <div class="field"><label>Power Model (Opus)</label><input id="cfg-openRouterOpusModel" type="text"></div>
