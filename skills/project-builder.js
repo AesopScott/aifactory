@@ -2,8 +2,11 @@
 
 const { spawn } = require('child_process')
 const fs = require('fs')
+const os = require('os')
 const path = require('path')
 const specInterview = require('./spec-interview')
+
+const ISOLATED_HOME = path.join(os.tmpdir(), 'aifactory-claude-isolated')
 
 const BUILD_TIMEOUT_MS = 15 * 60 * 1000
 const MAX_BUILD_ATTEMPTS = 3
@@ -177,18 +180,24 @@ function runClaudeAgent({ prompt, model, apiKey, workDir, emit, registerKill }) 
       '--model', model,
       '-p', prompt
     ]
+    fs.mkdirSync(ISOLATED_HOME, { recursive: true })
     const env = {
       ...process.env,
       ANTHROPIC_BASE_URL: 'https://openrouter.ai/api',
       ANTHROPIC_AUTH_TOKEN: apiKey,
-      ANTHROPIC_API_KEY: ''
+      HOME: ISOLATED_HOME,
+      USERPROFILE: ISOLATED_HOME
     }
+    delete env.ANTHROPIC_API_KEY
+    delete env.CLAUDE_CODE_OAUTH_TOKEN
+    delete env.CLAUDE_CONFIG_DIR
 
     emit({ text: `[debug] model: ${model}\n`, role: 'system' })
     emit({ text: `[debug] workDir: ${workDir}\n`, role: 'system' })
     emit({ text: `[debug] prompt length: ${prompt.length} chars\n`, role: 'system' })
     emit({ text: `[debug] base URL: ${env.ANTHROPIC_BASE_URL}\n`, role: 'system' })
     emit({ text: `[debug] API key present: ${!!apiKey}\n`, role: 'system' })
+    emit({ text: `[debug] isolated HOME: ${ISOLATED_HOME}\n`, role: 'system' })
 
     const proc = spawn('claude', args, { shell: true, cwd: workDir, env, stdio: ['ignore', 'pipe', 'pipe'] })
     emit({ text: `[debug] spawned claude PID: ${proc.pid}\n`, role: 'system' })
@@ -233,12 +242,13 @@ function runClaudeAgent({ prompt, model, apiKey, workDir, emit, registerKill }) 
       registerKill(null)
       clearTimeout(timer)
       emit({ text: `[debug] claude exited with code ${code}\n`, role: 'system' })
-      if (code === 0 || code === null) {
+      if (code === 0) {
         emit({ text: `[debug] build agent produced ${lines.length} output lines\n`, role: 'system' })
         resolve(lines)
       } else {
         const detail = stderrBuffer.trim() ? `\nStderr:\n${stderrBuffer.trim()}` : ''
-        reject(new Error(`Build agent exited with code ${code}${detail}`))
+        const codeStr = code === null ? 'null (process killed or crashed before exit)' : code
+        reject(new Error(`Build agent exited with code ${codeStr}${detail}`))
       }
     })
   })
