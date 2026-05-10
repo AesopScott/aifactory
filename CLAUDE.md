@@ -67,6 +67,16 @@ Electron-based app-building system. Uses a spec library (SPEC-00 through SPEC-10
 - **Git:** Local only — no remote configured
 - **Specs:** `specs/` folder contains SPEC-00 through SPEC-10 — read these before implementing anything
 
+### AI Factory build agents are self-sustaining
+
+When the build/test agents (`skills/project-builder.js`, `skills/test-runner.js`) run inside a target project, they own the build outright. They do not pause to ask the user where to put a file or what to do about a missing folder. The spec is the source of truth.
+
+- The target subpath (e.g. `aesop/test/testpage1e.html`) may not exist yet in the project's `workDir`. The agent creates it — parent directories included. `Write` auto-creates parents; for empty dirs the agent uses PowerShell `New-Item -ItemType Directory -Force`.
+- The agent never abandons a build over missing infrastructure it can create itself.
+- For genuinely architectural ambiguity (decisions that affect the whole project, not just where a file goes), the agent appends a `NEEDS-DECISION:` line to `BUILD-NOTES.md` in the workDir, picks a sensible default, and keeps building. The user reviews `BUILD-NOTES.md` after the run.
+
+This principle is enforced in `skills/project-builder.js` `buildPrompt()` so it survives any other prompt rewrites.
+
 ## Project knowledge base (Obsidian)
 Soul + why: `G:\My Drive\Aesop Academy\Obsidian\AIFactory_Build\1-Soul.md`
 Architecture: `G:\My Drive\Aesop Academy\Obsidian\AIFactory_Build\2-Architecture.md`

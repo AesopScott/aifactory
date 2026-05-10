@@ -117,6 +117,23 @@ function buildPrompt(specText, workDir, polarisProjects, obsidianVaultPath, prev
   }
 
   lines.push(
+    '## Self-sustaining principle',
+    'AI Factory is self-sustaining. The working directory may not contain the target',
+    'subpaths yet — that is expected. Build whatever directory structure the spec',
+    'requires. The Write tool auto-creates parent directories; for empty dirs use',
+    "PowerShell `New-Item -ItemType Directory -Force`. Never stop and ask \"where",
+    'should this go?" or "the folder doesn\'t exist" — the spec is the source of',
+    'truth. Resolve target paths from the spec and create them in full.',
+    '',
+    '- Treat every path the spec mentions (e.g. `aesop/test/testpage1e.html`) as',
+    '  authoritative. Create parent directories. Create the file. Done.',
+    '- If the spec is genuinely ambiguous on an architectural decision (something',
+    '  that affects the whole project, not just where a file lives), append a line',
+    '  to `BUILD-NOTES.md` in the workDir starting with `NEEDS-DECISION:` followed',
+    '  by the question and the default you proceeded with. Then keep building.',
+    '- Do not abandon the build over missing folders, missing parent dirs, missing',
+    '  init files, or any infrastructure you can create yourself.',
+    '',
     '## Instructions',
     '- Create every file the project needs (source, config, package.json, README, etc.)',
     '- Follow the spec exactly. Do not add features not specified.',
