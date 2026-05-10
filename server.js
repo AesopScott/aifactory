@@ -442,6 +442,11 @@ function handleMessage(ws, msg) {
     process.send({ type: 'pick-directory', requestId, defaultPath: msg.defaultPath || FACTORY_DIR })
     return
   }
+
+  if (msg.type === 'open-external') {
+    if (msg.url && process.send) process.send({ type: 'open-external', url: msg.url })
+    return
+  }
 }
 
 const pendingDirPicks = new Map()

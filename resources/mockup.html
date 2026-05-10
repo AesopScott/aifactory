@@ -209,8 +209,6 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
           <option value="opus">Power — Opus</option>
         </select>
         <button class="btn primary" onclick="startPipeline('full-pipeline')" title="Build code from your spec, run tests, and publish results">&#9654; Full Pipeline</button>
-        <button class="btn" onclick="startPipeline('build-only')" title="Generate code only — skip testing and publishing">Build Only</button>
-        <button class="btn" onclick="startPipeline('test-only')" title="Run tests on already-built code — skip code generation">Test Only</button>
         <button class="btn" id="stop-btn" style="display:none;border-color:var(--error);color:var(--error)" onclick="stopPipeline()">&#9632; Stop</button>
         <button class="btn" id="obsidian-btn" style="display:none" onclick="openObsidian()">Open in Obsidian</button>
       </div>
@@ -340,7 +338,7 @@ function closeModal(id){document.getElementById(id).classList.remove('open')}
 document.querySelectorAll('.modal-overlay').forEach(function(o){o.addEventListener('click',function(e){if(e.target===o)o.classList.remove('open')})});
 window.showTab=showTab;window.selectPolarisProject=selectPolarisProject;window.selectProject=function(id){currentProjectId=id||null;specIndex=0;testIndex=0;specEditMode=false;testEditMode=false;clearOutput();renderCurrentProject()};
 window.showNewProjectModal=showNewProjectModal;window.confirmNewProject=confirmNewProject;window.openSettings=openSettings;window.closeModal=closeModal;window.saveSettings=saveSettings;
-window.startPipeline=startPipeline;window.runSkill=runSkill;window.runRoutine=runRoutine;window.openObsidian=openObsidian;window.clearOutput=clearOutput;
+window.startPipeline=startPipeline;window.runSkill=runSkill;window.runRoutine=runRoutine;window.openObsidian=openObsidian;window.clearOutput=clearOutput;window.stopPipeline=stopPipeline;window.toggleDebug=toggleDebug;
 window.editSpec=function(){specEditMode=true;specIndex=0;renderSpecPanel(currentProject())};
 window.deleteProject=function(){var p=currentProject();if(!p)return;if(!confirm('Delete "'+p.name+'"? This removes it from AI Factory (files on disk are kept).'))return;send({type:'delete-project',projectId:p.id})};
 window.editTestCriteria=function(){testEditMode=true;testIndex=0;renderTestPanel(currentProject())};
