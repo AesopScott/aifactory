@@ -1,0 +1,326 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AI Factory</title>
+<style>
+:root{--bg:#0d0d0d;--surface:#161616;--surface2:#1e1e1e;--border:#2a2a2a;--text:#e0e0e0;--muted:#777;--accent:#6366f1;--accent-dim:#4f46e5;--success:#22c55e;--error:#ef4444;--warning:#f59e0b;--system:#64748b}
+*{box-sizing:border-box;margin:0;padding:0}html,body{height:100%;overflow:hidden}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column;font-size:14px}
+.header{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0}
+.logo{font-weight:700;font-size:16px;color:var(--accent);letter-spacing:.5px;white-space:nowrap}
+.header select{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:6px;font-size:13px;min-width:180px}
+.btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:5px 12px;border-radius:6px;cursor:pointer;font-size:13px;white-space:nowrap}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{background:var(--accent-dim)}
+.status-chip{font-size:11px;padding:3px 8px;border-radius:12px;border:1px solid var(--border);color:var(--muted);white-space:nowrap}
+.status-chip.running{border-color:var(--warning);color:var(--warning)}
+.status-chip.done{border-color:var(--success);color:var(--success)}
+.status-chip.failed{border-color:var(--error);color:var(--error)}
+.spacer{flex:1}
+.tabs{display:flex;gap:1px;background:var(--border);border-bottom:1px solid var(--border);flex-shrink:0}
+.tab{padding:9px 18px;cursor:pointer;background:var(--surface);color:var(--muted);font-size:13px;border-right:1px solid var(--border);transition:color .15s;user-select:none}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--text);background:var(--bg);border-bottom:2px solid var(--accent)}
+.panels{flex:1;overflow:hidden;display:flex;flex-direction:column}
+.panel{display:none;flex:1;overflow-y:auto;padding:20px;flex-direction:column;gap:16px}
+.panel.active{display:flex}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px}
+.card-title{font-weight:600;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px}
+.wizard{max-width:680px;width:100%}
+.wizard-question{font-size:16px;font-weight:500;margin-bottom:16px;line-height:1.5}
+.wizard-progress{display:flex;gap:4px;margin-bottom:20px;flex-wrap:wrap}
+.wizard-dot{width:8px;height:8px;border-radius:50%;background:var(--border);transition:background .2s}
+.wizard-dot.answered{background:var(--accent)}
+.wizard-dot.current{background:var(--warning)}
+.wizard-input,.wizard-textarea{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:10px 12px;font-size:14px;font-family:inherit}
+.wizard-input:focus,.wizard-textarea:focus{outline:none;border-color:var(--accent)}
+.wizard-textarea{min-height:100px;resize:vertical}
+.wizard-options{display:flex;flex-direction:column;gap:8px}
+.wizard-option{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;cursor:pointer}
+.wizard-option:hover{border-color:var(--accent)}
+.wizard-option.selected{border-color:var(--accent);background:#1e1e3a}
+.wizard-option input{accent-color:var(--accent)}
+.wizard-nav{display:flex;gap:8px;margin-top:16px;align-items:center}
+.wizard-counter{color:var(--muted);font-size:12px;margin-left:auto}
+.wizard-complete{padding:24px}
+.wizard-complete .check{font-size:40px;margin-bottom:12px}
+.wizard-complete h2{font-size:20px;margin-bottom:8px}
+.wizard-complete p{color:var(--muted);margin-bottom:20px}
+.empty-state{text-align:center;padding:60px 20px;color:var(--muted)}
+.empty-state h2{font-size:18px;margin-bottom:8px;color:var(--text)}
+.empty-state p{font-size:13px;margin-bottom:20px}
+.skill-row{display:flex;align-items:flex-start;gap:12px;padding:14px 0;border-bottom:1px solid var(--border)}
+.skill-row:last-child{border-bottom:none}
+.skill-info{flex:1}
+.skill-name{font-weight:600;margin-bottom:4px}
+.skill-desc{color:var(--muted);font-size:12px}
+.skill-type{font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid var(--border);color:var(--muted);margin-left:8px}
+.result-score{font-size:40px;font-weight:700;margin-bottom:4px}
+.result-score.good{color:var(--success)}
+.result-score.partial{color:var(--warning)}
+.result-score.bad{color:var(--error)}
+.test-item{display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid #1a1a1a;font-size:13px}
+.terminal{background:#0a0a0a;border:1px solid var(--border);border-radius:6px;padding:12px;font-family:'Consolas','Courier New',monospace;font-size:12px;line-height:1.6;max-height:400px;overflow-y:auto;white-space:pre-wrap;word-break:break-word}
+.line-assistant{color:#d4d4d4}
+.line-system{color:var(--system);font-style:italic}
+.line-error{color:var(--error)}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:10px;width:560px;max-height:80vh;overflow-y:auto;padding:24px}
+.modal h2{font-size:16px;margin-bottom:20px}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px}
+.field input{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:13px}
+.field input:focus{outline:none;border-color:var(--accent)}
+.modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:20px}
+.toast{position:fixed;bottom:20px;right:20px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 16px;font-size:13px;z-index:200;opacity:0;transition:opacity .3s;pointer-events:none;max-width:340px}
+.toast.show{opacity:1}
+.toast.error{border-color:var(--error);color:var(--error)}
+.stage-track{display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.stage-item{flex:1;padding:12px;text-align:center;font-size:12px;border-right:1px solid var(--border)}
+.stage-item:last-child{border-right:none}
+.stage-icon{font-size:20px;display:block;margin-bottom:4px}
+.stage-item.active{background:#1a1a2e}
+.stage-item.done{background:#0d1f14}
+.stage-item.failed{background:#1f0d0d}
+.stage-label{color:var(--muted);font-size:11px;margin-top:2px}
+.dir-bar{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-size:13px;max-width:680px}
+.dir-bar label{color:var(--muted);font-size:12px;white-space:nowrap;text-transform:uppercase;letter-spacing:.4px}
+.dir-bar select{flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:6px;font-size:13px}
+.dir-path{font-size:11px;color:var(--muted);font-family:'Consolas',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:280px}
+.linker-bar{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;margin-bottom:4px}
+.linker-bar label{font-size:12px;color:var(--muted);white-space:nowrap}
+.linker-bar select{flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:4px;font-size:13px}
+.linker-bar select:focus{outline:none;border-color:var(--accent)}
+.repo-badge{font-size:11px;color:var(--muted);white-space:nowrap}
+</style>
+</head>
+<body>
+<div class="header">
+  <span class="logo">AI Factory</span>
+  <select id="polarisSelect" onchange="selectPolarisProject(this.value)"><option value="">&#8212; Polaris Project &#8212;</option></select>
+  <select id="projectSelect" onchange="selectProject(this.value)"><option value="">&#8212; AI Factory Project &#8212;</option></select>
+  <span id="projectStatus" class="status-chip" style="display:none"></span>
+  <div class="spacer"></div>
+  <button class="btn primary" onclick="showNewProjectModal()">+ New Project</button>
+  <button class="btn" onclick="openSettings()">&#9881; Settings</button>
+</div>
+<div class="tabs">
+  <div class="tab active" data-tab="specs" onclick="showTab('specs')">Specifications</div>
+  <div class="tab" data-tab="testing" onclick="showTab('testing')">Testing</div>
+  <div class="tab" data-tab="skills" onclick="showTab('skills')">Skills</div>
+  <div class="tab" data-tab="routines" onclick="showTab('routines')">Routines</div>
+  <div class="tab" data-tab="results" onclick="showTab('results')">Results</div>
+</div>
+<div class="panels">
+  <div id="panel-specs" class="panel active">
+    <div id="polaris-info" style="display:none" class="linker-bar">
+      <label>Polaris Project</label>
+      <span id="polaris-info-name" style="font-weight:600;color:var(--text)"></span>
+      <span id="polaris-info-workdir" class="dir-path" style="flex:1"></span>
+    </div>
+  <div id="specs-empty" class="empty-state"><h2>No project selected</h2><p>Create a new project or select one above.</p><button class="btn primary" onclick="showNewProjectModal()">+ New Project</button></div>
+    <div id="specs-wizard" style="display:none" class="wizard">
+      <div class="card-title" id="specs-wizard-label">Specifications</div>
+      <div class="wizard-progress" id="spec-dots"></div>
+      <div id="spec-question-wrap"></div>
+      <div class="wizard-nav" id="spec-nav"></div>
+    </div>
+    <div id="specs-complete" style="display:none" class="wizard wizard-complete">
+      <div class="check">&#10003;</div><h2>Specifications Complete</h2>
+      <p>All required questions answered. Define your testing criteria next.</p>
+<div id="spec-summary" style="margin-bottom:20px;text-align:left"></div>
+      <button class="btn primary" onclick="showTab('testing')">&#9654; Start Testing Specification</button>
+      <button class="btn" onclick="editSpec()" style="margin-left:8px">Edit Answers</button>
+      <button class="btn" onclick="deleteProject()" style="margin-left:auto;border-color:var(--error);color:var(--error)">&#128465; Delete Project</button>
+    </div>
+  </div>
+  <div id="panel-testing" class="panel">
+    <div id="testing-empty" class="empty-state"><h2>No project selected</h2><p>Select a project to define testing criteria.</p></div>
+    <div id="testing-wizard" style="display:none" class="wizard">
+      <div class="card-title">Testing Criteria</div>
+      <div class="wizard-progress" id="test-dots"></div>
+      <div id="test-question-wrap"></div>
+      <div class="wizard-nav" id="test-nav"></div>
+    </div>
+    <div id="testing-complete" style="display:none" class="wizard wizard-complete">
+      <div class="check">&#10003;</div><h2>Testing Criteria Complete</h2>
+      <p>Specifications and acceptance tests are defined. Ready to build.</p>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <select id="model-tier-select-tc" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:6px;font-size:13px">
+          <option value="sonnet">Balanced — Sonnet</option>
+          <option value="floor">Floor — Haiku</option>
+          <option value="opus">Power — Opus</option>
+        </select>
+        <button class="btn primary" onclick="startPipeline('full-pipeline')">&#9654; Start Build</button>
+        <button class="btn" onclick="editTestCriteria()">Edit Criteria</button>
+        <button class="btn" onclick="deleteProject()" style="margin-left:auto;border-color:var(--error);color:var(--error)">&#128465; Delete Project</button>
+      </div>
+    </div>
+  </div>
+  <div id="panel-skills" class="panel">
+    <div class="card"><div class="card-title">Registered Skills</div><div id="skills-list"></div></div>
+  </div>
+  <div id="panel-routines" class="panel">
+    <div class="card"><div class="card-title">Registered Routines</div><div id="routines-list"></div></div>
+  </div>
+  <div id="panel-results" class="panel">
+    <div id="results-empty" class="empty-state"><h2>No results yet</h2><p>Complete the specification and start a build.</p></div>
+    <div id="results-content" style="display:none">
+      <div class="card">
+        <div class="stage-track">
+          <div class="stage-item" id="stage-build"><span class="stage-icon">&#128736;</span><div>Build</div><div class="stage-label" id="stage-build-label">waiting</div></div>
+          <div class="stage-item" id="stage-test"><span class="stage-icon">&#128203;</span><div>Test</div><div class="stage-label" id="stage-test-label">waiting</div></div>
+          <div class="stage-item" id="stage-publish"><span class="stage-icon">&#128279;</span><div>Publish</div><div class="stage-label" id="stage-publish-label">waiting</div></div>
+        </div>
+      </div>
+      <div class="card" id="results-score-card" style="display:none">
+        <div class="card-title">Test Results</div>
+        <div id="results-score" class="result-score"></div>
+        <div id="results-summary" style="color:var(--muted);font-size:13px;margin-bottom:12px"></div>
+        <div id="results-tests"></div>
+      </div>
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <div class="card-title" style="margin:0">Live Output</div>
+          <button class="btn" style="margin-left:auto;font-size:11px;padding:3px 8px" onclick="clearOutput()">Clear</button>
+        </div>
+        <div class="terminal" id="output-terminal"></div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <select id="model-tier-select" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:6px;font-size:13px">
+          <option value="sonnet">Balanced — Sonnet</option>
+          <option value="floor">Floor — Haiku</option>
+          <option value="opus">Power — Opus</option>
+        </select>
+        <button class="btn primary" onclick="startPipeline('full-pipeline')">&#9654; Full Pipeline</button>
+        <button class="btn" onclick="startPipeline('build-only')">Build Only</button>
+        <button class="btn" onclick="startPipeline('test-only')">Test Only</button>
+        <button class="btn" id="obsidian-btn" style="display:none" onclick="openObsidian()">Open in Obsidian</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="new-project-modal">
+  <div class="modal" style="width:460px"><h2>New AI Factory Project</h2>
+    <div class="field">
+      <label>Polaris Project <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)">— sets working dir &amp; Obsidian path</span></label>
+      <select id="new-project-polaris" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:13px"><option value="">&#8212; Select a Polaris project &#8212;</option></select>
+    </div>
+    <div class="field"><label>AI Factory Project Name</label><input id="new-project-name" type="text" placeholder="e.g. Chat Interface, Admin Dashboard" onkeydown="if(event.key==='Enter')confirmNewProject()"></div>
+    <div class="modal-footer"><button class="btn" onclick="closeModal('new-project-modal')">Cancel</button><button class="btn primary" onclick="confirmNewProject()">Create</button></div>
+  </div>
+</div>
+<div class="modal-overlay" id="settings-modal">
+  <div class="modal"><h2>Settings</h2>
+    <div class="field"><label>OpenRouter API Key</label><input id="cfg-openRouterApiKey" type="password" placeholder="sk-or-..."></div>
+    <div class="field"><label>Anthropic API Key (direct)</label><input id="cfg-anthropicApiKey" type="password" placeholder="sk-ant-..."></div>
+    <div class="field"><label>Floor Model (Haiku)</label><input id="cfg-openRouterFloorModel" type="text"></div>
+    <div class="field"><label>Balanced Model (Sonnet)</label><input id="cfg-openRouterSonnetModel" type="text"></div>
+    <div class="field"><label>Power Model (Opus)</label><input id="cfg-openRouterOpusModel" type="text"></div>
+    <div class="field"><label>Obsidian Vault Path</label><input id="cfg-obsidianVaultPath" type="text" placeholder="C:\Users\you\Vault"></div>
+    <div class="modal-footer"><button class="btn" onclick="closeModal('settings-modal')">Cancel</button><button class="btn primary" onclick="saveSettings()">Save</button></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+(function(){
+'use strict';
+var ws=null,projects=[],polarisProjects=[],polarisVaultPath='',currentPolarisProjectName=null,currentProjectId=null,specQuestions=[],testQuestions=[],skillsList=[],routinesList=[],specIndex=0,testIndex=0,specEditMode=false,testEditMode=false;
+function currentProject(){return projects.find(function(p){return p.id===currentProjectId})||null}
+function connect(){ws=new WebSocket('ws://localhost:40100');ws.onopen=function(){send({type:'get-state'})};ws.onmessage=function(e){try{handleMessage(JSON.parse(e.data))}catch(_){}};ws.onclose=function(){setTimeout(connect,2000)}}
+function send(data){if(ws&&ws.readyState===1)ws.send(JSON.stringify(data))}
+function handleMessage(msg){
+  if(msg.type==='init'){projects=msg.projects||[];polarisProjects=msg.polarisProjects||[];polarisVaultPath=msg.polarisVaultPath||'';specQuestions=msg.specQuestions||[];testQuestions=msg.testQuestions||[];skillsList=msg.skills||[];routinesList=msg.routines||[];if(msg.config)applyConfig(msg.config);renderAll();return}
+  if(msg.type==='project-created'){projects.push(msg.project);currentPolarisProjectName=msg.project.polarisProjectName||null;currentProjectId=msg.project.id;renderAll();showTab('specs');return}
+  if(msg.type==='project-updated'){var idx=projects.findIndex(function(p){return p.id===msg.project.id});if(idx>=0)projects[idx]=msg.project;else projects.push(msg.project);if(msg.project.id===currentProjectId)renderCurrentProject();renderProjectSelect();return}
+  if(msg.type==='agent-line'){if(msg.projectId===currentProjectId)appendOutput(msg.text,msg.role||'assistant');return}
+  if(msg.type==='stage-started'){if(msg.projectId===currentProjectId){appendOutput('\n=== '+msg.stage+' ===\n','system');updateStageUI(msg.stage,'active');showTab('results')}return}
+  if(msg.type==='stage-done'){if(msg.projectId===currentProjectId)updateStageUI(msg.stage,msg.success?'done':'failed');return}
+  if(msg.type==='pipeline-done'){if(msg.projectId===currentProjectId)renderCurrentProject();return}
+  if(msg.type==='project-deleted'){projects=projects.filter(function(p){return p.id!==msg.projectId});if(currentProjectId===msg.projectId){currentProjectId=null;renderAll()}else{renderProjectSelect()};return}
+  if(msg.type==='config'){applyConfig(msg.config);return}
+  if(msg.type==='error'){showToast(msg.message,true);return}
+  if(msg.type==='directory-picked'&&msg.dirPath){var inp=document.getElementById('cfg-obsidianVaultPath');if(inp)inp.value=msg.dirPath;return}
+}
+function renderAll(){renderPolarisSelect();renderProjectSelect();renderSkills();renderRoutines();renderCurrentProject()}
+function renderPolarisSelect(){var sel=document.getElementById('polarisSelect');sel.innerHTML='<option value="">&#8212; Polaris Project &#8212;</option>';polarisProjects.forEach(function(pp){var o=document.createElement('option');o.value=pp.name;o.textContent=pp.name;if(pp.name===currentPolarisProjectName)o.selected=true;sel.appendChild(o)})}
+function selectPolarisProject(name){currentPolarisProjectName=name||null;currentProjectId=null;specIndex=0;testIndex=0;specEditMode=false;testEditMode=false;renderProjectSelect();renderCurrentProject()}
+function renderProjectSelect(){var sel=document.getElementById('projectSelect');sel.innerHTML='<option value="">&#8212; AI Factory Project &#8212;</option>';var filtered=currentPolarisProjectName?projects.filter(function(p){return p.polarisProjectName===currentPolarisProjectName}):[];filtered.forEach(function(p){var o=document.createElement('option');o.value=p.id;o.textContent=p.name;if(p.id===currentProjectId)o.selected=true;sel.appendChild(o)})}
+function renderCurrentProject(){var p=currentProject();var se=document.getElementById('projectStatus');if(!p){se.style.display='none';renderPolarisInfo(null);showSpecEmpty();showTestEmpty();showResultsEmpty();return}se.style.display='';se.textContent=p.status;se.className='status-chip'+(p.status==='done'?' done':p.status==='failed'?' failed':p.status.startsWith('running')?' running':'');renderPolarisInfo(p);renderSpecPanel(p);renderTestPanel(p);renderResultsPanel(p)}
+function showSpecEmpty(){show('specs-empty');hide('specs-wizard');hide('specs-complete');hide('polaris-info')}
+function renderPolarisInfo(p){
+  if(!p||!p.polarisProjectName){hide('polaris-info');return}
+  show('polaris-info');
+  document.getElementById('polaris-info-name').textContent=p.polarisProjectName;
+  var pp=polarisProjects.find(function(x){return x.name===p.polarisProjectName});
+  document.getElementById('polaris-info-workdir').textContent=pp?pp.workDir:(p.workDir||'');
+}
+function renderSpecPanel(p){hide('specs-empty');if(p.spec.complete&&!specEditMode){hide('specs-wizard');show('specs-complete');renderSpecSummary(p)}else if(specEditMode){show('specs-wizard');hide('specs-complete');renderSpecEditForm(p)}else{show('specs-wizard');hide('specs-complete');renderSpecWizard(p)}}
+function renderSpecEditForm(p){var vq=getVisible(specQuestions,p.spec.answers);document.getElementById('specs-wizard-label').textContent='Edit Specifications';document.getElementById('spec-dots').innerHTML='';var wrap=document.getElementById('spec-question-wrap');wrap.innerHTML='';vq.forEach(function(q){var s=document.createElement('div');s.style.marginBottom='20px';s.appendChild(buildQ(q,p.spec.answers[q.id],'spec'));wrap.appendChild(s)});var nav=document.getElementById('spec-nav');nav.innerHTML='';var sv=document.createElement('button');sv.className='btn primary';sv.textContent='Save Changes';sv.onclick=function(){var vq2=getVisible(specQuestions,p.spec.answers);vq2.forEach(function(q){var v=getVal('spec',q);if(v!==null)p.spec.answers[q.id]=v});specEditMode=false;send({type:'update-spec',projectId:p.id,answers:p.spec.answers});renderSpecPanel(p)};nav.appendChild(sv);var cv=document.createElement('button');cv.className='btn';cv.style.marginLeft='8px';cv.textContent='Cancel';cv.onclick=function(){specEditMode=false;renderSpecPanel(p)};nav.appendChild(cv)}
+function renderSpecWizard(p){var vq=getVisible(specQuestions,p.spec.answers);var total=vq.length;specIndex=Math.max(0,Math.min(specIndex,total-1));var dots=document.getElementById('spec-dots');dots.innerHTML='';for(var i=0;i<total;i++){var d=document.createElement('div');d.className='wizard-dot'+(i<specIndex?' answered':i===specIndex?' current':'');dots.appendChild(d)}document.getElementById('specs-wizard-label').textContent='Specifications ('+(specIndex+1)+' of '+total+')';var q=vq[specIndex];if(!q)return;var wrap=document.getElementById('spec-question-wrap');wrap.innerHTML='';wrap.appendChild(buildQ(q,p.spec.answers[q.id],'spec'));renderNav('spec-nav',specIndex,total,p,vq,'spec')}
+function renderSpecSummary(p){var div=document.getElementById('spec-summary');div.innerHTML=specQuestions.filter(function(q){return p.spec.answers[q.id]}).map(function(q){return'<div style="margin-bottom:8px"><span style="color:var(--muted);font-size:12px">'+esc(q.label)+'</span><br>'+esc(String(p.spec.answers[q.id]))+'</div>'}).join('')}
+function showTestEmpty(){show('testing-empty');hide('testing-wizard');hide('testing-complete')}
+function renderTestPanel(p){hide('testing-empty');if(p.testCriteria.complete&&!testEditMode){hide('testing-wizard');show('testing-complete')}else if(testEditMode){show('testing-wizard');hide('testing-complete');renderTestEditForm(p)}else{show('testing-wizard');hide('testing-complete');renderTestWizard(p)}}
+function renderTestEditForm(p){var vq=getVisible(testQuestions,p.testCriteria.answers);document.getElementById('test-dots').innerHTML='';var wrap=document.getElementById('test-question-wrap');wrap.innerHTML='';vq.forEach(function(q){var s=document.createElement('div');s.style.marginBottom='20px';s.appendChild(buildQ(q,p.testCriteria.answers[q.id],'test'));wrap.appendChild(s)});var nav=document.getElementById('test-nav');nav.innerHTML='';var sv=document.createElement('button');sv.className='btn primary';sv.textContent='Save Changes';sv.onclick=function(){var vq2=getVisible(testQuestions,p.testCriteria.answers);vq2.forEach(function(q){var v=getVal('test',q);if(v!==null)p.testCriteria.answers[q.id]=v});testEditMode=false;send({type:'update-test-criteria',projectId:p.id,answers:p.testCriteria.answers});renderTestPanel(p)};nav.appendChild(sv);var cv=document.createElement('button');cv.className='btn';cv.style.marginLeft='8px';cv.textContent='Cancel';cv.onclick=function(){testEditMode=false;renderTestPanel(p)};nav.appendChild(cv)}
+function renderTestWizard(p){var vq=getVisible(testQuestions,p.testCriteria.answers);var total=vq.length;testIndex=Math.max(0,Math.min(testIndex,total-1));var dots=document.getElementById('test-dots');dots.innerHTML='';for(var i=0;i<total;i++){var d=document.createElement('div');d.className='wizard-dot'+(i<testIndex?' answered':i===testIndex?' current':'');dots.appendChild(d)}var q=vq[testIndex];if(!q)return;var wrap=document.getElementById('test-question-wrap');wrap.innerHTML='';wrap.appendChild(buildQ(q,p.testCriteria.answers[q.id],'test'));renderNav('test-nav',testIndex,total,p,vq,'test')}
+function renderNav(navId,idx,total,p,questions,prefix){var nav=document.getElementById(navId);nav.innerHTML='';if(idx>0){var prev=document.createElement('button');prev.className='btn';prev.textContent='← Back';prev.onclick=function(){saveAns(p,questions,idx,prefix);if(prefix==='spec'){specIndex--;renderSpecWizard(p)}else{testIndex--;renderTestWizard(p)}};nav.appendChild(prev)}var next=document.createElement('button');next.className='btn primary';next.textContent=idx<total-1?'Next →':'Finish';next.onclick=function(){saveAns(p,questions,idx,prefix);if(idx<total-1){if(prefix==='spec'){specIndex++;renderSpecWizard(p)}else{testIndex++;renderTestWizard(p)}}else{if(prefix==='spec'){specEditMode=false;send({type:'update-spec',projectId:p.id,answers:p.spec.answers});renderSpecPanel(p)}else{testEditMode=false;send({type:'update-test-criteria',projectId:p.id,answers:p.testCriteria.answers});renderTestPanel(p)}}};nav.appendChild(next);var ctr=document.createElement('span');ctr.className='wizard-counter';ctr.textContent=(idx+1)+' / '+total;nav.appendChild(ctr)}
+function saveAns(p,questions,idx,prefix){var q=questions[idx];if(!q)return;var val=getVal(prefix,q);if(val!==null){if(prefix==='spec'){p.spec.answers[q.id]=val;send({type:'update-spec',projectId:p.id,answers:{[q.id]:val}})}else{p.testCriteria.answers[q.id]=val;send({type:'update-test-criteria',projectId:p.id,answers:{[q.id]:val}})}}}
+function getVisible(questions,answers){return questions.filter(function(q){if(!q.dependsOn)return true;var a=answers[q.dependsOn.id]||'';return a===q.dependsOn.value||a.split(', ').indexOf(q.dependsOn.value)>=0})}
+function buildQ(q,cur,prefix){var wrap=document.createElement('div');var lbl=document.createElement('div');lbl.className='wizard-question';lbl.textContent=q.question;if(!q.required){var os=document.createElement('span');os.style.cssText='font-size:11px;color:var(--muted);margin-left:8px';os.textContent='optional';lbl.appendChild(os)}wrap.appendChild(lbl);if(q.type==='text'){var inp=document.createElement('input');inp.className='wizard-input';inp.type='text';inp.id=prefix+'-input-'+q.id;inp.value=cur||'';inp.placeholder='Type your answer...';wrap.appendChild(inp)}else if(q.type==='textarea'){var ta=document.createElement('textarea');ta.className='wizard-textarea';ta.id=prefix+'-input-'+q.id;ta.value=cur||'';ta.placeholder='Type your answer...';wrap.appendChild(ta)}else if(q.type==='select'){var opts=document.createElement('div');opts.className='wizard-options';opts.id=prefix+'-input-'+q.id;q.options.forEach(function(o){var row=document.createElement('label');row.className='wizard-option'+(cur===o?' selected':'');var r=document.createElement('input');r.type='radio';r.name=prefix+'-'+q.id;r.value=o;r.checked=cur===o;r.onchange=function(){opts.querySelectorAll('.wizard-option').forEach(function(x){x.classList.remove('selected')});row.classList.add('selected')};row.appendChild(r);row.appendChild(document.createTextNode(' '+o));opts.appendChild(row)});wrap.appendChild(opts)}else if(q.type==='multiselect'){var sel2=cur?cur.split(',').map(function(s){return s.trim()}):[];var opts2=document.createElement('div');opts2.className='wizard-options';opts2.id=prefix+'-input-'+q.id;q.options.forEach(function(o){var row=document.createElement('label');row.className='wizard-option'+(sel2.indexOf(o)>=0?' selected':'');var cb=document.createElement('input');cb.type='checkbox';cb.value=o;cb.checked=sel2.indexOf(o)>=0;cb.onchange=function(){row.classList.toggle('selected',cb.checked)};row.appendChild(cb);row.appendChild(document.createTextNode(' '+o));opts2.appendChild(row)});wrap.appendChild(opts2)}return wrap}
+function getVal(prefix,q){var el=document.getElementById(prefix+'-input-'+q.id);if(!el)return null;if(q.type==='text'||q.type==='textarea')return el.value.trim();if(q.type==='select'){var c=el.querySelector('input[type=radio]:checked');return c?c.value:null}if(q.type==='multiselect'){return Array.from(el.querySelectorAll('input[type=checkbox]:checked')).map(function(c){return c.value}).join(', ')}return null}
+function renderSkills(){var list=document.getElementById('skills-list');list.innerHTML='';if(!skillsList.length){list.innerHTML='<div style="color:var(--muted)">No skills loaded.</div>';return}skillsList.forEach(function(s){var row=document.createElement('div');row.className='skill-row';var btn=s.type!=='ui'?'<button class="btn" onclick="runSkill(\''+esc(s.name)+'\')">Run</button>':'';row.innerHTML='<div class="skill-info"><div class="skill-name">'+esc(s.name)+'<span class="skill-type">'+esc(s.type)+'</span></div><div class="skill-desc">'+esc(s.description)+'</div></div>'+btn;list.appendChild(row)})}
+function renderRoutines(){var list=document.getElementById('routines-list');list.innerHTML='';if(!routinesList.length){list.innerHTML='<div style="color:var(--muted)">No routines loaded.</div>';return}routinesList.forEach(function(r){var row=document.createElement('div');row.className='skill-row';row.innerHTML='<div class="skill-info"><div class="skill-name">'+esc(r.name)+'</div><div class="skill-desc">'+esc(r.description)+'</div><div style="color:var(--muted);font-size:11px;margin-top:4px">Stages: '+r.stages.join(' -> ')+'</div></div><button class="btn" onclick="runRoutine(\''+esc(r.name)+'\')">Run</button>';list.appendChild(row)})}
+function showResultsEmpty(){show('results-empty');hide('results-content')}
+function renderResultsPanel(p){hide('results-empty');show('results-content');if(p.testResults){show('results-score-card');var passed=p.testResults.passed||[],failed=p.testResults.failed||[],total=passed.length+failed.length,pct=total?Math.round(passed.length/total*100):0;var sc=document.getElementById('results-score');sc.textContent=pct+'%';sc.className='result-score '+(pct>=80?'good':pct>=50?'partial':'bad');document.getElementById('results-summary').textContent=p.testResults.summary||'';var te=document.getElementById('results-tests');te.innerHTML='';passed.forEach(function(t){te.innerHTML+='<div class="test-item"><span style="color:var(--success)">&#10003;</span> '+esc(t)+'</div>'});failed.forEach(function(t){te.innerHTML+='<div class="test-item"><span style="color:var(--error)">&#10007;</span> '+esc(t)+'</div>'})}else{hide('results-score-card')}document.getElementById('obsidian-btn').style.display=p.obsidianPath?'':'none'}
+var stageTimers={};
+function updateStageUI(stageName,state){var map={'project-builder':'stage-build','test-runner':'stage-test','results-publisher':'stage-publish'};var id=map[stageName];if(!id)return;var el=document.getElementById(id);var lbl=document.getElementById(id+'-label');el.className='stage-item '+state;if(stageTimers[id]){clearInterval(stageTimers[id]);delete stageTimers[id]}if(state==='active'){var start=Date.now();lbl.textContent='0s';stageTimers[id]=setInterval(function(){lbl.textContent=Math.floor((Date.now()-start)/1000)+'s'},1000)}else{lbl.textContent=state==='done'?'done':state==='failed'?'failed':'waiting'}}
+function appendOutput(text,role){var term=document.getElementById('output-terminal');var div=document.createElement('div');div.className='line-'+(role||'assistant');div.textContent=text;term.appendChild(div);if(term.children.length>2000)term.removeChild(term.firstChild);term.scrollTop=term.scrollHeight}
+function clearOutput(){document.getElementById('output-terminal').innerHTML=''}
+var CFG=['openRouterApiKey','anthropicApiKey','openRouterFloorModel','openRouterSonnetModel','openRouterOpusModel','obsidianVaultPath'];
+function applyConfig(cfg){CFG.forEach(function(f){var inp=document.getElementById('cfg-'+f);if(inp&&cfg[f]!==undefined)inp.value=cfg[f]})}
+function saveSettings(){var config={};CFG.forEach(function(f){var inp=document.getElementById('cfg-'+f);if(inp)config[f]=inp.value});send({type:'save-config',config:config});closeModal('settings-modal');showToast('Settings saved')}
+function getModelTier(){var onTesting=document.getElementById('panel-testing').classList.contains('active');var sel=document.getElementById(onTesting?'model-tier-select-tc':'model-tier-select');return sel?sel.value:'sonnet'}
+function startPipeline(r){var p=currentProject();if(!p){showToast('Select a project first',true);return}send({type:'start-pipeline',projectId:p.id,routine:r,modelTier:getModelTier()});showTab('results');resetStageUI();clearOutput()}
+function resetStageUI(){Object.keys(stageTimers).forEach(function(k){clearInterval(stageTimers[k])});stageTimers={};['stage-build','stage-test','stage-publish'].forEach(function(id){var e=document.getElementById(id);if(e)e.className='stage-item'});document.getElementById('stage-build-label').textContent='waiting';document.getElementById('stage-test-label').textContent='waiting';document.getElementById('stage-publish-label').textContent='waiting'}
+function runSkill(n){var p=currentProject();if(!p){showToast('Select a project first',true);return}send({type:'run-skill',projectId:p.id,skillName:n});showTab('results');clearOutput()}
+function runRoutine(n){var p=currentProject();if(!p){showToast('Select a project first',true);return}send({type:'run-routine',projectId:p.id,routineName:n});showTab('results');resetStageUI();clearOutput()}
+function openObsidian(){var p=currentProject();if(p&&p.obsidianPath)send({type:'open-external',url:'obsidian://open?path='+encodeURIComponent(p.obsidianPath)})}
+function show(id){document.getElementById(id).style.display=''}
+function hide(id){document.getElementById(id).style.display='none'}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function showTab(name){document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('active',t.dataset.tab===name)});document.querySelectorAll('.panel').forEach(function(p){p.classList.toggle('active',p.id==='panel-'+name)})}
+function showToast(msg,isError){var t=document.getElementById('toast');t.textContent=msg;t.className='toast show'+(isError?' error':'');clearTimeout(t._timer);t._timer=setTimeout(function(){t.classList.remove('show')},3000)}
+function showNewProjectModal(){
+  document.getElementById('new-project-name').value='';
+  var sel=document.getElementById('new-project-polaris');
+  sel.innerHTML='<option value="">&#8212; Select a Polaris project &#8212;</option>';
+  polarisProjects.forEach(function(pp){var o=document.createElement('option');o.value=pp.name;o.textContent=pp.name;if(pp.name===currentPolarisProjectName)o.selected=true;sel.appendChild(o)});
+  document.getElementById('new-project-modal').classList.add('open');
+  setTimeout(function(){document.getElementById('new-project-polaris').focus()},50)
+}
+function confirmNewProject(){
+  var polarisName=document.getElementById('new-project-polaris').value;
+  if(!polarisName){showToast('Select a Polaris project first',true);return}
+  var name=document.getElementById('new-project-name').value.trim();
+  if(!name)return;
+  var pp=polarisProjects.find(function(x){return x.name===polarisName});
+  send({type:'create-project',name:name,workDir:pp?pp.workDir:null,polarisProjectName:polarisName});
+  closeModal('new-project-modal')
+}
+function openSettings(){send({type:'get-config'});document.getElementById('settings-modal').classList.add('open')}
+function closeModal(id){document.getElementById(id).classList.remove('open')}
+document.querySelectorAll('.modal-overlay').forEach(function(o){o.addEventListener('click',function(e){if(e.target===o)o.classList.remove('open')})});
+window.showTab=showTab;window.selectPolarisProject=selectPolarisProject;window.selectProject=function(id){currentProjectId=id||null;specIndex=0;testIndex=0;specEditMode=false;testEditMode=false;clearOutput();renderCurrentProject()};
+window.showNewProjectModal=showNewProjectModal;window.confirmNewProject=confirmNewProject;window.openSettings=openSettings;window.closeModal=closeModal;window.saveSettings=saveSettings;
+window.startPipeline=startPipeline;window.runSkill=runSkill;window.runRoutine=runRoutine;window.openObsidian=openObsidian;window.clearOutput=clearOutput;
+window.editSpec=function(){specEditMode=true;specIndex=0;renderSpecPanel(currentProject())};
+window.deleteProject=function(){var p=currentProject();if(!p)return;if(!confirm('Delete "'+p.name+'"? This removes it from AI Factory (files on disk are kept).'))return;send({type:'delete-project',projectId:p.id})};
+window.editTestCriteria=function(){testEditMode=true;testIndex=0;renderTestPanel(currentProject())};
+connect();
+})();
+</script>
+</body>
+</html>

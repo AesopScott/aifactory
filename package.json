@@ -1,0 +1,40 @@
+{
+  "name": "ai-factory",
+  "version": "1.0.14",
+  "description": "AI-powered project factory — specify, build, test, ship.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "electron": "^34.5.8",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.scott.aifactory",
+    "productName": "AI Factory",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "**/*",
+      "!dist/**",
+      "!specs/**",
+      "!node_modules/.cache/**"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/",
+        "to": "resources/"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    }
+  }
+}
